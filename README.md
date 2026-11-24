@@ -12,6 +12,7 @@ PocketDeck is a self-contained, offline-capable Mini Cyberdeck firmware for the 
 | **OLED SCL** | `GPIO22` | Hardware I2C SCL |
 | **IR Receiver OUT** | `GPIO23` | 38kHz NEC IR Receiver output |
 | **Mode Selector Button** | `GPIO4` | Momentary button to `GND` (internal `INPUT_PULLUP`) |
+| **OLED Power Button** | `GPIO33` | Dedicated momentary button to `GND` (`INPUT_PULLUP`, active `LOW`) |
 | **Keypad Row 1** | `GPIO16` | Direct matrix row 1 |
 | **Keypad Row 2** | `GPIO17` | Direct matrix row 2 |
 | **Keypad Row 3** | `GPIO18` | Direct matrix row 3 |
@@ -72,15 +73,17 @@ All modules share a common `GND` and `3.3V` rail from the ESP32 DevKit V1.
 
 ## 3. Applications & Games
 
-1. **Terminal**: Local shell with multi-tap input and scrollable output (`help`, `clear`, `info`, `uptime`, `version`, `wifi`, `ble`, `notes`, `games`, `ls`, `reboot`, `exit`).
-2. **Wi-Fi Scanner**: Asynchronous 2.4 GHz scanner showing SSID, RSSI, Channel, and Encryption status with a detail view.
+1. **Terminal**: Local shell with multi-tap input and scrollable output (`help`, `clear`, `info`, `time`, `weather`, `ntp`, `uptime`, `version`, `wifi`, `ble`, `notes`, `games`, `ls`, `reboot`, `exit`).
+2. **Wi-Fi Manager**: Asynchronous 2.4 GHz scanner and STA connection manager with multi-tap password entry, NVS profile persistence, auto-reconnect, and detail view.
 3. **BLE Explorer**: On-demand 2-second burst BLE scanner showing Device Name, MAC Address, and RSSI.
 4. **Notes**: Persistent note creation, multi-tap editing, viewing, and deletion backed by LittleFS (`/notes`).
 5. **File Manager**: Browse LittleFS directories (`/` and `/notes`), view text files, create new files, delete files, and inspect file/filesystem stats.
 6. **Calculator**: Floating-point arithmetic (`+`, `-`, `*`, `/`), decimals, backspace/clear, and division-by-zero / overflow protection.
 7. **Game Center**: Modular game launcher featuring **Snake**, **Pong**, and **Cyber Reflex (Reaction Game)**.
-8. **System Monitor**: Live dual-page telemetry (Uptime, Free/Min Heap, Input Mode, Wi-Fi/BLE status, CPU frequency, LittleFS usage, SDK version).
-9. **Settings**: Persistent NVS settings (Mode Indicator badge, Boot Input Mode, OLED Contrast/Brightness, Display Inversion, Screen Timeout, System Info, Factory Reset, Reboot).
+8. **System Monitor**: Live dual-page telemetry (Uptime, Free/Min Heap, Input Mode, Wi-Fi/BLE status, IP address, NTP status, CPU frequency, LittleFS usage, SDK version).
+9. **Settings**: Persistent NVS settings (Mode Indicator badge, Boot Input Mode, OLED Contrast/Brightness, Display Inversion, Screen Timeout, Weather Temperature Unit C/F, Weather Auto-Refresh, Timezone UTC offset, 12H/24H Clock Format, Auto NTP Sync, Auto Wi-Fi Connect, System Info, Factory Reset, Reboot).
+10. **Weather**: Live weather & 5-day forecast app powered by Open-Meteo (no API key required) with multi-tap City Name Search, Weather Details (Feels Like, Wind & Compass direction, Pressure, Rain %, UV Index), Favorite Cities, Recent Locations, and LittleFS offline caching.
+11. **Clock & NTP**: Internet NTP time synchronization (`pool.ntp.org`), configurable UTC timezone offset, 24H/12H display, and offline manual time/date editor.
 
 ---
 

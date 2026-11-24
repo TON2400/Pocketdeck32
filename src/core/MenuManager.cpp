@@ -1,15 +1,19 @@
 #include "MenuManager.h"
+#include "TimeManager.h"
+#include <stdio.h>
 
 static const MenuItem MAIN_MENU_ITEMS[] = {
     { APP_TERMINAL,       "1. Terminal"       },
-    { APP_WIFI_SCANNER,   "2. Wi-Fi Scanner"  },
+    { APP_WIFI_SCANNER,   "2. Wi-Fi Manager"  },
     { APP_BLE_EXPLORER,   "3. BLE Explorer"   },
     { APP_NOTES,          "4. Notes"          },
     { APP_FILE_MANAGER,   "5. File Manager"   },
     { APP_CALCULATOR,     "6. Calculator"     },
     { APP_GAME_CENTER,    "7. Game Center"    },
     { APP_SYSTEM_MONITOR, "8. System Monitor" },
-    { APP_SETTINGS,       "9. Settings"       }
+    { APP_SETTINGS,       "9. Settings"       },
+    { APP_WEATHER,        "10. Weather"       },
+    { APP_CLOCK,          "11. Clock & NTP"   }
 };
 
 static const int MAIN_MENU_COUNT   = sizeof(MAIN_MENU_ITEMS) / sizeof(MAIN_MENU_ITEMS[0]);
@@ -43,12 +47,18 @@ AppId MenuManager::handleInput(const InputEvent& ev, bool& outNeedsRedraw) {
         return APP_NONE;
     }
 
-    // In IR Mode, number buttons 1-9 jump directly to the corresponding app.
-    // In Keypad Mode, A/B or 2/8 move up/down and 5/# selects, while 1/3/4/6/7/9 can also jump or navigate.
-    if (ev.sourceMode == MODE_IR && ev.type == EVT_PRESS && ev.digit >= 1 && ev.digit <= MAIN_MENU_COUNT) {
-        setSelectedIndex(ev.digit - 1);
-        outNeedsRedraw = true;
-        return MAIN_MENU_ITEMS[_selectedIndex].id;
+    // In IR Mode, number buttons 1-9 (and 0 for item 10: Weather) jump directly to the corresponding app.
+    if (ev.sourceMode == MODE_IR && ev.type == EVT_PRESS) {
+        if (ev.digit >= 1 && ev.digit <= 9 && ev.digit <= MAIN_MENU_COUNT) {
+            setSelectedIndex(ev.digit - 1);
+            outNeedsRedraw = true;
+            return MAIN_MENU_ITEMS[_selectedIndex].id;
+        }
+        if (ev.digit == 0 && MAIN_MENU_COUNT >= 10) {
+            setSelectedIndex(9); // 10. Weather
+            outNeedsRedraw = true;
+            return MAIN_MENU_ITEMS[_selectedIndex].id;
+        }
     }
 
     if (ev.action == ACT_UP) {
@@ -76,7 +86,16 @@ AppId MenuManager::handleInput(const InputEvent& ev, bool& outNeedsRedraw) {
 void MenuManager::render(DisplayManager& display, InputMode mode, bool showModeBadge) {
     auto& oled = display.oled();
     display.clear();
-    display.drawHeader("POCKETDECK", mode, showModeBadge);
+
+    if (g_time.isTimeValid()) {
+        char timeBuf[10];
+        char hdr[24];
+        g_time.formatTimeHHMM(timeBuf, sizeof(timeBuf));
+        snprintf(hdr, sizeof(hdr), "PDECK %s", timeBuf);
+        display.drawHeader(hdr, mode, showModeBadge);
+    } else {
+        display.drawHeader("POCKETDECK", mode, showModeBadge);
+    }
 
     const int startY = 13;
     const int rowH   = 10;
@@ -105,6 +124,6 @@ void MenuManager::render(DisplayManager& display, InputMode mode, bool showModeB
     if (mode == MODE_KEYPAD) {
         display.drawFooter("A/B,2/8:Nav", "5/#:Open");
     } else {
-        display.drawFooter("VOL:Nav", "CH+/1-9:Open");
+        display.drawFooter("VOL:Nav", "CH+/1-0:Open");
     }
 }

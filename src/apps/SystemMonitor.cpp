@@ -1,5 +1,7 @@
 #include "SystemMonitor.h"
 #include "../core/StorageManager.h"
+#include "../core/WiFiManager.h"
+#include "../core/TimeManager.h"
 #include "../utils/Helpers.h"
 #include <stdio.h>
 
@@ -86,12 +88,19 @@ void SystemMonitorApp::render(DisplayManager& display, InputMode mode, bool show
         oled.printf("MinHeap: %lu KB", (unsigned long)(ESP.getMinFreeHeap() / 1024UL));
 
         oled.setCursor(2, 34);
-        oled.printf("FS: %lu/%lu KB",
+        oled.printf("FS:%lu/%luK NTP:%s",
                     (unsigned long)(fsUsed / 1024UL),
-                    (unsigned long)(fsTotal / 1024UL));
+                    (unsigned long)(fsTotal / 1024UL),
+                    g_time.isTimeValid() ? "OK" : "--");
 
         oled.setCursor(2, 44);
-        oled.printf("SDK: %s", ESP.getSdkVersion());
+        if (g_wifi.isConnected()) {
+            char ipBuf[20];
+            g_wifi.getIPString(ipBuf, sizeof(ipBuf));
+            oled.printf("IP: %s", ipBuf);
+        } else {
+            oled.printf("SDK: %s", ESP.getSdkVersion());
+        }
     }
 
     display.drawFooter("*:Back", "2/8/5:Page");

@@ -38,6 +38,7 @@ public:
     void setContrast(uint8_t contrast);
     void setInverted(bool inverted);
     void setPower(bool on);
+    void togglePower();
     bool isPoweredOn() const { return _powerOn; }
 
 private:

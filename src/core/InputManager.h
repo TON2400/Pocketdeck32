@@ -56,7 +56,13 @@ public:
     InputManager();
 
     void begin();
-    InputEvent poll();
+    InputEvent poll(bool displayPoweredOn = true);
+
+    // Poll dedicated physical OLED power toggle button (GPIO33)
+    bool pollOledPowerButton();
+
+    // Reset inactivity timeout timestamp (e.g. when waking OLED)
+    void recordActivity();
 
     InputMode getMode() const { return _currentMode; }
     void setMode(InputMode mode);

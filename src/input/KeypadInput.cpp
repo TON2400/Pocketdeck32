@@ -18,6 +18,7 @@ static const char KEY_MAP[KEYPAD_ROWS][KEYPAD_COLS] = {
 KeypadInput::KeypadInput()
     : _lastRawKey('\0'),
       _stableKey('\0'),
+      _lastScanTime(0),
       _lastDebounceTime(0),
       _pressStartTime(0),
       _longPressFired(false) {}
@@ -35,9 +36,11 @@ void KeypadInput::begin() {
 }
 
 void KeypadInput::resetState() {
+    uint32_t now      = millis();
     _lastRawKey       = '\0';
     _stableKey        = '\0';
-    _lastDebounceTime = millis();
+    _lastScanTime     = now;
+    _lastDebounceTime = now;
     _pressStartTime   = 0;
     _longPressFired   = false;
 }
@@ -58,8 +61,7 @@ char KeypadInput::scanRawMatrix() {
             }
         }
 
-        // Release row back to INPUT_PULLUP
-        digitalWrite(ROW_PINS[r], HIGH);
+        // Release row directly back to INPUT_PULLUP without driving push-pull HIGH
         pinMode(ROW_PINS[r], INPUT_PULLUP);
 
         if (detected != '\0') {
@@ -109,8 +111,13 @@ InputEvent KeypadInput::poll() {
     ev.clear();
     ev.sourceMode = MODE_KEYPAD;
 
-    char raw = scanRawMatrix();
     uint32_t now = millis();
+    char raw = _lastRawKey;
+    if ((now - _lastScanTime) >= 2UL) {
+        _lastScanTime = now;
+        raw = scanRawMatrix();
+        now = millis();
+    }
 
     if (raw != _lastRawKey) {
         _lastDebounceTime = now;

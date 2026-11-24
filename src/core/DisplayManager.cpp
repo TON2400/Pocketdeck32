@@ -2,7 +2,7 @@
 #include <string.h>
 
 DisplayManager::DisplayManager()
-    : _display(OLED_WIDTH, OLED_HEIGHT, &Wire, OLED_RESET_PIN),
+    : _display(OLED_WIDTH, OLED_HEIGHT, &Wire, OLED_RESET_PIN, 400000UL, 400000UL),
       _initialized(false),
       _dirty(true),
       _powerOn(true),
@@ -13,7 +13,7 @@ DisplayManager::DisplayManager()
 
 bool DisplayManager::begin() {
     Wire.begin(PIN_OLED_SDA, PIN_OLED_SCL, 400000UL);
-    if (!_display.begin(SSD1306_SWITCHCAPVCC, OLED_I2C_ADDR)) {
+    if (!_display.begin(SSD1306_SWITCHCAPVCC, OLED_I2C_ADDR, true, false)) {
         _initialized = false;
         return false;
     }
@@ -183,4 +183,8 @@ void DisplayManager::setPower(bool on) {
     if (on) {
         _dirty = true;
     }
+}
+
+void DisplayManager::togglePower() {
+    setPower(!_powerOn);
 }

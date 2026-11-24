@@ -7,7 +7,7 @@
 // System Info
 // ============================================================================
 #define POCKETDECK_NAME        "PocketDeck"
-#define POCKETDECK_VERSION     "1.0.0"
+#define POCKETDECK_VERSION     "1.1.0"
 
 // ============================================================================
 // Hardware Pin Definitions (Section 2 - Exact Pin Mapping)
@@ -17,6 +17,7 @@
 
 #define PIN_IR_RECV            23
 #define PIN_MODE_BTN           4
+#define PIN_OLED_BTN           33
 
 #define PIN_KP_ROW1            16
 #define PIN_KP_ROW2            17
@@ -41,6 +42,9 @@
 // ============================================================================
 #define MODE_BTN_DEBOUNCE_MS   45
 #define MODE_BTN_COOLDOWN_MS   250
+
+#define OLED_BTN_DEBOUNCE_MS   45
+#define OLED_BTN_COOLDOWN_MS   250
 
 #define KEYPAD_ROWS            4
 #define KEYPAD_COLS            4
@@ -88,6 +92,8 @@ enum AppId : uint8_t {
     APP_GAME_CENTER,
     APP_SYSTEM_MONITOR,
     APP_SETTINGS,
+    APP_WEATHER,
+    APP_CLOCK,
     APP_COUNT
 };
 

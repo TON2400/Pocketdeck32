@@ -20,6 +20,7 @@ private:
 
     char     _lastRawKey;
     char     _stableKey;
+    uint32_t _lastScanTime;
     uint32_t _lastDebounceTime;
     uint32_t _pressStartTime;
     bool     _longPressFired;

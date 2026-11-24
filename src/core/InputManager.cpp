@@ -1,9 +1,11 @@
 #include "InputManager.h"
 #include "../input/ModeSelector.h"
+#include "../input/OledButton.h"
 #include "../input/KeypadInput.h"
 #include "../input/IRInput.h"
 
 static ModeSelector s_modeSelector;
+static OledButton   s_oledButton;
 static KeypadInput  s_keypadInput;
 static IRInput      s_irInput;
 
@@ -14,8 +16,17 @@ InputManager::InputManager()
 
 void InputManager::begin() {
     s_modeSelector.begin();
+    s_oledButton.begin();
     s_keypadInput.begin();
     s_irInput.begin();
+    _lastActivityMs = millis();
+}
+
+bool InputManager::pollOledPowerButton() {
+    return s_oledButton.pollTogglePressed();
+}
+
+void InputManager::recordActivity() {
     _lastActivityMs = millis();
 }
 
@@ -47,10 +58,11 @@ bool InputManager::isActionHeld(InputAction action) const {
     }
 }
 
-InputEvent InputManager::poll() {
+InputEvent InputManager::poll(bool displayPoweredOn) {
     // 1. Check physical mode selector button (GPIO4)
     if (s_modeSelector.pollTogglePressed()) {
-        if (!_modeSwitchLocked) {
+        // Do not change input mode while OLED display is turned off
+        if (displayPoweredOn && !_modeSwitchLocked) {
             InputMode nextMode = (_currentMode == MODE_KEYPAD) ? MODE_IR : MODE_KEYPAD;
             setMode(nextMode);
 

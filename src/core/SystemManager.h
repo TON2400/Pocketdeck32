@@ -36,6 +36,7 @@ private:
     AppId          _activeAppId;
     bool           _inBootScreen;
     uint32_t       _bootStartMs;
+    int8_t         _lastMenuMinute;
 };
 
 extern SystemManager g_system;

@@ -2,6 +2,8 @@
 #include "SystemMonitor.h"
 #include "../core/SystemManager.h"
 #include "../core/StorageManager.h"
+#include "../core/WiFiManager.h"
+#include "../core/TimeManager.h"
 #include "../utils/Helpers.h"
 #include <string.h>
 #include <stdio.h>
@@ -86,10 +88,10 @@ void TerminalApp::executeCommand(const char* rawCmd) {
     appendLine(echoLine);
 
     if (strcmp(cmd, "help") == 0) {
-        appendLine("help clear info");
-        appendLine("uptime version wifi");
-        appendLine("ble notes games");
-        appendLine("ls reboot exit");
+        appendLine("help clear info time");
+        appendLine("weather ntp wifi ble");
+        appendLine("uptime version notes");
+        appendLine("games ls reboot exit");
     } else if (strcmp(cmd, "clear") == 0) {
         clearOutput();
     } else if (strcmp(cmd, "info") == 0) {
@@ -113,10 +115,40 @@ void TerminalApp::executeCommand(const char* rawCmd) {
         snprintf(buf, sizeof(buf), "IDF: %.14s", ESP.getSdkVersion());
         appendLine(buf);
     } else if (strcmp(cmd, "wifi") == 0) {
-        char buf[24];
-        snprintf(buf, sizeof(buf), "WiFi APs:%d (open)", SystemMonitorApp::lastWifiCount());
-        appendLine(buf);
-        g_system.launchApp(APP_WIFI_SCANNER);
+        if (g_wifi.isConnected()) {
+            char ssid[24];
+            char ip[20];
+            char buf[28];
+            g_wifi.getConnectedSSID(ssid, sizeof(ssid));
+            g_wifi.getIPString(ip, sizeof(ip));
+            snprintf(buf, sizeof(buf), "SSID:%.15s", ssid);
+            appendLine(buf);
+            snprintf(buf, sizeof(buf), "IP:%s", ip);
+            appendLine(buf);
+        } else {
+            g_system.launchApp(APP_WIFI_SCANNER);
+        }
+    } else if (strcmp(cmd, "weather") == 0) {
+        g_system.launchApp(APP_WEATHER);
+    } else if (strcmp(cmd, "time") == 0 || strcmp(cmd, "clock") == 0) {
+        if (g_time.isTimeValid()) {
+            char tBuf[16];
+            char dBuf[20];
+            char line[28];
+            g_time.formatTimeHHMMSS(tBuf, sizeof(tBuf));
+            g_time.formatDateFull(dBuf, sizeof(dBuf));
+            snprintf(line, sizeof(line), "%s %s", tBuf, g_time.getSyncStatusLabel());
+            appendLine(line);
+            appendLine(dBuf);
+        } else {
+            g_system.launchApp(APP_CLOCK);
+        }
+    } else if (strcmp(cmd, "ntp") == 0) {
+        if (g_time.requestNtpSync()) {
+            appendLine("NTP sync started...");
+        } else {
+            appendLine("WiFi offline");
+        }
     } else if (strcmp(cmd, "ble") == 0) {
         char buf[24];
         snprintf(buf, sizeof(buf), "BLE Devs:%d (open)", SystemMonitorApp::lastBleCount());

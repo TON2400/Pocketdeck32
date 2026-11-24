@@ -1,9 +1,11 @@
 #include "SettingsApp.h"
 #include "../core/SettingsManager.h"
+#include "../core/TimeManager.h"
+#include "../core/WiFiManager.h"
 #include "../core/SystemManager.h"
 #include <stdio.h>
 
-static const int SETTINGS_ITEM_COUNT   = 8;
+static const int SETTINGS_ITEM_COUNT   = 14;
 static const int SETTINGS_VISIBLE_ROWS = 4;
 
 SettingsApp::SettingsApp()
@@ -40,30 +42,74 @@ void SettingsApp::adjustSelected(int delta) {
             g_settings.save();
             g_system.applySettings();
             break;
-        case 4: { // Screen Timeout (0, 30, 60, 120)
-            static const uint16_t TIMEOUTS[] = { 0, 30, 60, 120 };
+        case 4: { // Screen Timeout (0, 15, 30, 60, 120, 300)
+            static const uint16_t TIMEOUTS[] = { 0, 15, 30, 60, 120, 300 };
+            static const int NUM_T = 6;
             int idx = 0;
-            for (int i = 0; i < 4; i++) {
+            for (int i = 0; i < NUM_T; i++) {
                 if (TIMEOUTS[i] == cfg.screenTimeoutSec) {
                     idx = i;
                     break;
                 }
             }
-            idx = (idx + (delta >= 0 ? 1 : 3)) % 4;
+            idx = (idx + (delta >= 0 ? 1 : (NUM_T - 1))) % NUM_T;
             cfg.screenTimeoutSec = TIMEOUTS[idx];
             g_settings.save();
             break;
         }
-        case 5: // System Info view
+        case 5: // Weather Temperature Unit (C / F)
+            cfg.weatherFahrenheit = !cfg.weatherFahrenheit;
+            g_settings.save();
+            break;
+        case 6: { // Weather Auto-Refresh Interval (0, 15, 30, 60 min)
+            static const uint8_t INTERVALS[] = { 0, 15, 30, 60 };
+            int idx = 0;
+            for (int i = 0; i < 4; i++) {
+                if (INTERVALS[i] == cfg.weatherRefreshMin) {
+                    idx = i;
+                    break;
+                }
+            }
+            idx = (idx + (delta >= 0 ? 1 : 3)) % 4;
+            cfg.weatherRefreshMin = INTERVALS[idx];
+            g_settings.save();
+            break;
+        }
+        case 7: { // Timezone Offset (-12:00 to +14:00 in 30-min increments)
+            int16_t nextMin = cfg.tzOffsetMinutes + (int16_t)((delta >= 0 ? 1 : -1) * 30);
+            if (nextMin > 840)  nextMin = -720;
+            if (nextMin < -720) nextMin = 840;
+            cfg.tzOffsetMinutes = nextMin;
+            g_settings.save();
+            g_time.applyTimezone();
+            break;
+        }
+        case 8: // Time Format (24H / 12H)
+            cfg.use24HourTime = !cfg.use24HourTime;
+            g_settings.save();
+            break;
+        case 9: // Auto NTP Sync on Wi-Fi connect
+            cfg.autoNtpSync = !cfg.autoNtpSync;
+            g_settings.save();
+            if (cfg.autoNtpSync && g_wifi.isConnected()) {
+                g_time.requestNtpSync();
+            }
+            break;
+        case 10: // Auto Wi-Fi Connect on Boot
+            cfg.autoConnectWiFi = !cfg.autoConnectWiFi;
+            g_settings.save();
+            break;
+        case 11: // System Info view
             _showingInfo = true;
             break;
-        case 6: // Reset Defaults
+        case 12: // Reset Defaults
             g_settings.resetDefaults();
             g_settings.save();
+            g_time.applyTimezone();
             g_system.applySettings();
             g_system.display().showToast("DEFAULTS SET", 900);
             break;
-        case 7: // Restart ESP32
+        case 13: // Restart ESP32
             g_system.display().clear();
             g_system.display().oled().setCursor(24, 28);
             g_system.display().oled().print(F("REBOOTING..."));
@@ -120,9 +166,11 @@ void SettingsApp::render(DisplayManager& display, InputMode mode, bool showModeB
         oled.setCursor(2, 24);
         oled.printf("Chip: %s r%d", ESP.getChipModel(), ESP.getChipRevision());
         oled.setCursor(2, 34);
-        oled.printf("CPU: %luMHz Cores:%d", (unsigned long)ESP.getCpuFreqMHz(), ESP.getChipCores());
+        oled.printf("CPU: %luMHz OLED:G33", (unsigned long)ESP.getCpuFreqMHz());
         oled.setCursor(2, 44);
-        oled.printf("Flash: %luMB", (unsigned long)(ESP.getFlashChipSize() / (1024UL * 1024UL)));
+        oled.printf("Flash:%luMB Heap:%luK",
+                    (unsigned long)(ESP.getFlashChipSize() / (1024UL * 1024UL)),
+                    (unsigned long)(ESP.getFreeHeap() / 1024UL));
         display.drawFooter("*:Back", nullptr);
         return;
     }
@@ -130,20 +178,32 @@ void SettingsApp::render(DisplayManager& display, InputMode mode, bool showModeB
     const auto& cfg = g_settings.get();
     const char* brightStr = (cfg.brightnessLevel == 0) ? "LOW" :
                             (cfg.brightnessLevel == 1) ? "MED" : "HIGH";
+    char tzStr[14];
+    TimeManager::formatTimezoneOffset(cfg.tzOffsetMinutes, tzStr, sizeof(tzStr));
 
     char lines[SETTINGS_ITEM_COUNT][24];
-    snprintf(lines[0], sizeof(lines[0]), "Mode Badge: %s", cfg.showModeIndicator ? "ON" : "OFF");
-    snprintf(lines[1], sizeof(lines[1]), "Boot Input: %s", cfg.defaultInputMode == MODE_KEYPAD ? "KP" : "IR");
-    snprintf(lines[2], sizeof(lines[2]), "Brightness: %s", brightStr);
-    snprintf(lines[3], sizeof(lines[3]), "Invert OLED: %s", cfg.invertDisplay ? "YES" : "NO");
+    snprintf(lines[0],  sizeof(lines[0]),  "Mode Badge: %s", cfg.showModeIndicator ? "ON" : "OFF");
+    snprintf(lines[1],  sizeof(lines[1]),  "Boot Input: %s", cfg.defaultInputMode == MODE_KEYPAD ? "KP" : "IR");
+    snprintf(lines[2],  sizeof(lines[2]),  "Brightness: %s", brightStr);
+    snprintf(lines[3],  sizeof(lines[3]),  "Invert OLED: %s", cfg.invertDisplay ? "YES" : "NO");
     if (cfg.screenTimeoutSec == 0) {
         snprintf(lines[4], sizeof(lines[4]), "Timeout: OFF");
     } else {
         snprintf(lines[4], sizeof(lines[4]), "Timeout: %us", (unsigned)cfg.screenTimeoutSec);
     }
-    snprintf(lines[5], sizeof(lines[5]), "System Info >");
-    snprintf(lines[6], sizeof(lines[6]), "Reset Defaults");
-    snprintf(lines[7], sizeof(lines[7]), "Restart Device");
+    snprintf(lines[5],  sizeof(lines[5]),  "Temp Unit: %s", cfg.weatherFahrenheit ? "FAHR (F)" : "CELS (C)");
+    if (cfg.weatherRefreshMin == 0) {
+        snprintf(lines[6], sizeof(lines[6]), "Wx Refresh: MANUAL");
+    } else {
+        snprintf(lines[6], sizeof(lines[6]), "Wx Refresh: %um", (unsigned)cfg.weatherRefreshMin);
+    }
+    snprintf(lines[7],  sizeof(lines[7]),  "Timezone: %s", tzStr);
+    snprintf(lines[8],  sizeof(lines[8]),  "Time Fmt: %s", cfg.use24HourTime ? "24-HOUR" : "12-HOUR");
+    snprintf(lines[9],  sizeof(lines[9]),  "Auto NTP: %s", cfg.autoNtpSync ? "ON" : "OFF");
+    snprintf(lines[10], sizeof(lines[10]), "Auto Wi-Fi: %s", cfg.autoConnectWiFi ? "ON" : "OFF");
+    snprintf(lines[11], sizeof(lines[11]), "System Info >");
+    snprintf(lines[12], sizeof(lines[12]), "Reset Defaults");
+    snprintf(lines[13], sizeof(lines[13]), "Restart Device");
 
     const int startY = 13;
     const int rowH   = 10;
